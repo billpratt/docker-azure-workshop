@@ -20,7 +20,13 @@ This topic creates three VMs, but you can use any number you want. Before you ru
 
 **Get your subscription Id**
 
+Type the command below. This will print out a JSON block showing the accounts you are currently logged into. The subscription id is found in the **id** field.
+
     az account list
+    
+**Confirm your Azure Subscription**
+
+    az account set --subscription [YOUR SUB ID]
 
 **Build Swarm VMs**
 Use the environment variables we set previously or put your Subscription ID from above in the code before running these commands.  You may also want to change the azure location, resource group name and machine names to your liking by modifying the deployment script.
