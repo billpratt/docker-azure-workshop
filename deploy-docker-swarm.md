@@ -18,11 +18,13 @@ This topic creates three VMs, but you can use any number you want. **docker-mach
 
 **Get your subscription Id**
 
+Type the command below. This will print out a JSON block showing the accounts you are currently logged into. The subscription id is found in the **id** field.
+
     az account list
 
 **Confirm your Azure Subscription**
 
-    azure account set <YOUR SUB ID>
+    az account set --subscription <YOUR SUB ID>
 
 **Create environment variables to be re-used**
 
