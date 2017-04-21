@@ -1,0 +1,814 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "vmName": {
+            "defaultValue": "docker-swarm",
+            "type": "string"
+        },
+        "availabilitySets_docker_machine_name": {
+            "defaultValue": "docker-machine",
+            "type": "String"
+        },
+        "virtualMachines_swarm_leader_name": {
+            "defaultValue": "swarm-leader",
+            "type": "String"
+        },
+        "virtualMachines_swarm_node_1_name": {
+            "defaultValue": "swarm-node-1",
+            "type": "String"
+        },
+        "virtualMachines_swarm_node_2_name": {
+            "defaultValue": "swarm-node-2",
+            "type": "String"
+        },
+        "virtualMachines_swarm_node_3_name": {
+            "defaultValue": "swarm-node-3",
+            "type": "String"
+        },
+        "networkInterfaces_swarm_leader_nic_name": {
+            "defaultValue": "swarm-leader-nic",
+            "type": "String"
+        },
+        "networkInterfaces_swarm_node_1_nic_name": {
+            "defaultValue": "swarm-node-1-nic",
+            "type": "String"
+        },
+        "networkInterfaces_swarm_node_2_nic_name": {
+            "defaultValue": "swarm-node-2-nic",
+            "type": "String"
+        },
+        "networkInterfaces_swarm_node_3_nic_name": {
+            "defaultValue": "swarm-node-3-nic",
+            "type": "String"
+        },
+        "networkSecurityGroups_swarm_leader_firewall_name": {
+            "defaultValue": "swarm-leader-firewall",
+            "type": "String"
+        },
+        "networkSecurityGroups_swarm_node_1_firewall_name": {
+            "defaultValue": "swarm-node-1-firewall",
+            "type": "String"
+        },
+        "networkSecurityGroups_swarm_node_2_firewall_name": {
+            "defaultValue": "swarm-node-2-firewall",
+            "type": "String"
+        },
+        "networkSecurityGroups_swarm_node_3_firewall_name": {
+            "defaultValue": "swarm-node-3-firewall",
+            "type": "String"
+        },
+        "publicIPAddresses_swarm_leader_ip_name": {
+            "defaultValue": "swarm-leader-ip",
+            "type": "String"
+        },
+        "publicIPAddresses_swarm_node_1_ip_name": {
+            "defaultValue": "swarm-node-1-ip",
+            "type": "String"
+        },
+        "publicIPAddresses_swarm_node_2_ip_name": {
+            "defaultValue": "swarm-node-2-ip",
+            "type": "String"
+        },
+        "publicIPAddresses_swarm_node_3_ip_name": {
+            "defaultValue": "swarm-node-3-ip",
+            "type": "String"
+        },
+        "virtualNetworks_docker_machine_vnet_name": {
+            "defaultValue": "docker-machine-vnet",
+            "type": "String"
+        },
+         "adminPassword": {
+            "type": "String"
+        }
+    },
+    "variables": {
+        "vhdStorageAccountName": "[concat('vhdstorage', uniqueString(resourceGroup().id))]"
+    },
+    "resources": [
+        {
+            "comments": "Generalized from resource: '/subscriptions/f567edfb-6273-4c59-ad6f-a8e478949531/resourceGroups/ContainersSwarmMode/providers/Microsoft.Compute/availabilitySets/docker-machine'.",
+            "type": "Microsoft.Compute/availabilitySets",
+            "sku": {
+                "name": "Classic"
+            },
+            "name": "[parameters('availabilitySets_docker_machine_name')]",
+            "apiVersion": "2016-04-30-preview",
+            "location": "eastus",
+            "properties": {
+                "platformUpdateDomainCount": 5,
+                "platformFaultDomainCount": 3
+              
+            }
+         
+        },
+        {
+            "comments": "Generalized from resource: '/subscriptions/f567edfb-6273-4c59-ad6f-a8e478949531/resourceGroups/ContainersSwarmMode/providers/Microsoft.Compute/virtualMachines/swarm-leader'.",
+            "type": "Microsoft.Compute/virtualMachines",
+            "name": "[parameters('virtualMachines_swarm_leader_name')]",
+            "apiVersion": "2016-04-30-preview",
+            "location": "eastus",
+            "properties": {
+                "availabilitySet": {
+                    "id": "[resourceId('Microsoft.Compute/availabilitySets', parameters('availabilitySets_docker_machine_name'))]"
+                },
+                "hardwareProfile": {
+                    "vmSize": "Standard_A1"
+                },
+                "storageProfile": {
+                    "imageReference": {
+                        "publisher": "canonical",
+                        "offer": "UbuntuServer",
+                        "sku": "16.04.0-LTS",
+                        "version": "latest"
+                    },
+                    "osDisk": {
+                        "osType": "Linux",
+                        "name": "[concat(parameters('virtualMachines_swarm_leader_name'),'-os-disk')]",
+                        "createOption": "FromImage",
+                        "vhd": {
+                            "uri": "[concat('https', '://', variables('vhdStorageAccountName'), '.blob.core.windows.net', concat('/vhd-', parameters('virtualMachines_swarm_leader_name'),'/', parameters('virtualMachines_swarm_leader_name'),'-os-disk.vhd'))]"
+                        },
+                        "caching": "ReadWrite"
+                    },
+                    "dataDisks": []
+                },
+                "osProfile": {
+                    "computerName": "[parameters('virtualMachines_swarm_leader_name')]",
+                    "adminUsername": "sysadmin",
+                    "adminPassword": "[parameters('adminPassword')]",
+                    "secrets": []
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', parameters('networkInterfaces_swarm_leader_nic_name'))]"
+                        }
+                    ]
+                }
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Compute/availabilitySets', parameters('availabilitySets_docker_machine_name'))]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('vhdStorageAccountName'))]",
+                "[resourceId('Microsoft.Network/networkInterfaces', parameters('networkInterfaces_swarm_leader_nic_name'))]"
+            ]
+        },
+        {
+            "comments": "Generalized from resource: '/subscriptions/f567edfb-6273-4c59-ad6f-a8e478949531/resourceGroups/ContainersSwarmMode/providers/Microsoft.Compute/virtualMachines/swarm-node-1'.",
+            "type": "Microsoft.Compute/virtualMachines",
+            "name": "[parameters('virtualMachines_swarm_node_1_name')]",
+            "apiVersion": "2016-04-30-preview",
+            "location": "eastus",
+            "properties": {
+                "availabilitySet": {
+                    "id": "[resourceId('Microsoft.Compute/availabilitySets', parameters('availabilitySets_docker_machine_name'))]"
+                },
+                "hardwareProfile": {
+                    "vmSize": "Standard_A1"
+                },
+                "storageProfile": {
+                    "imageReference": {
+                        "publisher": "canonical",
+                        "offer": "UbuntuServer",
+                        "sku": "16.04.0-LTS",
+                        "version": "latest"
+                    },
+                    "osDisk": {
+                        "osType": "Linux",
+                        "name": "[concat(parameters('virtualMachines_swarm_node_1_name'),'-os-disk')]",
+                        "createOption": "FromImage",
+                        "vhd": {
+                            "uri": "[concat('https', '://', variables('vhdStorageAccountName'), '.blob.core.windows.net', concat('/vhd-', parameters('virtualMachines_swarm_node_1_name'),'/', parameters('virtualMachines_swarm_node_1_name'),'-os-disk.vhd'))]"
+                        },
+                        "caching": "ReadWrite"
+                    },
+                    "dataDisks": []
+                },
+                "osProfile": {
+                    "computerName": "[parameters('virtualMachines_swarm_node_1_name')]",
+                    "adminUsername": "sysadmin",
+                   "adminPassword": "[parameters('adminPassword')]",
+                    "secrets": []
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', parameters('networkInterfaces_swarm_node_1_nic_name'))]"
+                        }
+                    ]
+                }
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Compute/availabilitySets', parameters('availabilitySets_docker_machine_name'))]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('vhdStorageAccountName'))]",
+                "[resourceId('Microsoft.Network/networkInterfaces', parameters('networkInterfaces_swarm_node_1_nic_name'))]"
+            ]
+        },
+        {
+            "comments": "Generalized from resource: '/subscriptions/f567edfb-6273-4c59-ad6f-a8e478949531/resourceGroups/ContainersSwarmMode/providers/Microsoft.Compute/virtualMachines/swarm-node-2'.",
+            "type": "Microsoft.Compute/virtualMachines",
+            "name": "[parameters('virtualMachines_swarm_node_2_name')]",
+            "apiVersion": "2016-04-30-preview",
+            "location": "eastus",
+            "properties": {
+                "availabilitySet": {
+                    "id": "[resourceId('Microsoft.Compute/availabilitySets', parameters('availabilitySets_docker_machine_name'))]"
+                },
+                "hardwareProfile": {
+                    "vmSize": "Standard_A1"
+                },
+                "storageProfile": {
+                    "imageReference": {
+                        "publisher": "canonical",
+                        "offer": "UbuntuServer",
+                        "sku": "16.04.0-LTS",
+                        "version": "latest"
+                    },
+                    "osDisk": {
+                        "osType": "Linux",
+                        "name": "[concat(parameters('virtualMachines_swarm_node_2_name'),'-os-disk')]",
+                        "createOption": "FromImage",
+                        "vhd": {
+                            "uri": "[concat('https', '://', variables('vhdStorageAccountName'), '.blob.core.windows.net', concat('/vhd-', parameters('virtualMachines_swarm_node_2_name'),'/', parameters('virtualMachines_swarm_node_2_name'),'-os-disk.vhd'))]"
+                        },
+                        "caching": "ReadWrite"
+                    },
+                    "dataDisks": []
+                },
+                "osProfile": {
+                    "computerName": "[parameters('virtualMachines_swarm_node_2_name')]",
+                    "adminUsername": "sysadmin",
+                    "adminPassword": "[parameters('adminPassword')]",
+                    "secrets": []
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', parameters('networkInterfaces_swarm_node_2_nic_name'))]"
+                        }
+                    ]
+                }
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Compute/availabilitySets', parameters('availabilitySets_docker_machine_name'))]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('vhdStorageAccountName'))]",
+                "[resourceId('Microsoft.Network/networkInterfaces', parameters('networkInterfaces_swarm_node_2_nic_name'))]"
+            ]
+        },
+        {
+            "comments": "Generalized from resource: '/subscriptions/f567edfb-6273-4c59-ad6f-a8e478949531/resourceGroups/ContainersSwarmMode/providers/Microsoft.Compute/virtualMachines/swarm-node-3'.",
+            "type": "Microsoft.Compute/virtualMachines",
+            "name": "[parameters('virtualMachines_swarm_node_3_name')]",
+            "apiVersion": "2016-04-30-preview",
+            "location": "eastus",
+            "properties": {
+                "availabilitySet": {
+                    "id": "[resourceId('Microsoft.Compute/availabilitySets', parameters('availabilitySets_docker_machine_name'))]"
+                },
+                "hardwareProfile": {
+                    "vmSize": "Standard_A1"
+                },
+                "storageProfile": {
+                    "imageReference": {
+                        "publisher": "canonical",
+                        "offer": "UbuntuServer",
+                        "sku": "16.04.0-LTS",
+                        "version": "latest"
+                    },
+                    "osDisk": {
+                        "osType": "Linux",
+                        "name": "[concat(parameters('virtualMachines_swarm_node_3_name'),'-os-disk')]",
+                        "createOption": "FromImage",
+                        "vhd": {
+                            "uri": "[concat('https', '://', variables('vhdStorageAccountName'), '.blob.core.windows.net', concat('/vhd-', parameters('virtualMachines_swarm_node_3_name'),'/', parameters('virtualMachines_swarm_node_3_name'),'-os-disk.vhd'))]"
+                        },
+                        "caching": "ReadWrite"
+                    },
+                    "dataDisks": []
+                },
+                "osProfile": {
+                    "computerName": "[parameters('virtualMachines_swarm_node_3_name')]",
+                    "adminUsername": "sysadmin",
+                    "adminPassword": "[parameters('adminPassword')]",
+                    "secrets": []
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', parameters('networkInterfaces_swarm_node_3_nic_name'))]"
+                        }
+                    ]
+                }
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Compute/availabilitySets', parameters('availabilitySets_docker_machine_name'))]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('vhdStorageAccountName'))]",
+                "[resourceId('Microsoft.Network/networkInterfaces', parameters('networkInterfaces_swarm_node_3_nic_name'))]"
+            ]
+        },
+        {
+            "comments": "Generalized from resource: '/subscriptions/f567edfb-6273-4c59-ad6f-a8e478949531/resourceGroups/ContainersSwarmMode/providers/Microsoft.Network/networkInterfaces/swarm-leader-nic'.",
+            "type": "Microsoft.Network/networkInterfaces",
+            "name": "[parameters('networkInterfaces_swarm_leader_nic_name')]",
+            "apiVersion": "2016-03-30",
+            "location": "eastus",
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "ip",
+                        "properties": {
+                            "privateIPAddress": "192.168.0.4",
+                            "privateIPAllocationMethod": "Dynamic",
+                            "publicIPAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', parameters('publicIPAddresses_swarm_leader_ip_name'))]"
+                            },
+                            "subnet": {
+                                "id": "[concat(resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworks_docker_machine_vnet_name')), '/subnets/docker-machine')]"
+                            }
+                        }
+                    }
+                ],
+                "dnsSettings": {
+                    "dnsServers": []
+                },
+                "enableIPForwarding": false,
+                "networkSecurityGroup": {
+                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroups_swarm_leader_firewall_name'))]"
+                }
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/publicIPAddresses', parameters('publicIPAddresses_swarm_leader_ip_name'))]",
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworks_docker_machine_vnet_name'))]",
+                "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroups_swarm_leader_firewall_name'))]"
+            ]
+        },
+        {
+            "comments": "Generalized from resource: '/subscriptions/f567edfb-6273-4c59-ad6f-a8e478949531/resourceGroups/ContainersSwarmMode/providers/Microsoft.Network/networkInterfaces/swarm-node-1-nic'.",
+            "type": "Microsoft.Network/networkInterfaces",
+            "name": "[parameters('networkInterfaces_swarm_node_1_nic_name')]",
+            "apiVersion": "2016-03-30",
+            "location": "eastus",
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "ip",
+                        "properties": {
+                            "privateIPAddress": "192.168.0.5",
+                            "privateIPAllocationMethod": "Dynamic",
+                            "publicIPAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', parameters('publicIPAddresses_swarm_node_1_ip_name'))]"
+                            },
+                            "subnet": {
+                                "id": "[concat(resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworks_docker_machine_vnet_name')), '/subnets/docker-machine')]"
+                            }
+                        }
+                    }
+                ],
+                "dnsSettings": {
+                    "dnsServers": []
+                },
+                "enableIPForwarding": false,
+                "networkSecurityGroup": {
+                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroups_swarm_node_1_firewall_name'))]"
+                }
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/publicIPAddresses', parameters('publicIPAddresses_swarm_node_1_ip_name'))]",
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworks_docker_machine_vnet_name'))]",
+                "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroups_swarm_node_1_firewall_name'))]"
+            ]
+        },
+        {
+            "comments": "Generalized from resource: '/subscriptions/f567edfb-6273-4c59-ad6f-a8e478949531/resourceGroups/ContainersSwarmMode/providers/Microsoft.Network/networkInterfaces/swarm-node-2-nic'.",
+            "type": "Microsoft.Network/networkInterfaces",
+            "name": "[parameters('networkInterfaces_swarm_node_2_nic_name')]",
+            "apiVersion": "2016-03-30",
+            "location": "eastus",
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "ip",
+                        "properties": {
+                            "privateIPAddress": "192.168.0.6",
+                            "privateIPAllocationMethod": "Dynamic",
+                            "publicIPAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', parameters('publicIPAddresses_swarm_node_2_ip_name'))]"
+                            },
+                            "subnet": {
+                                "id": "[concat(resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworks_docker_machine_vnet_name')), '/subnets/docker-machine')]"
+                            }
+                        }
+                    }
+                ],
+                "dnsSettings": {
+                    "dnsServers": []
+                },
+                "enableIPForwarding": false,
+                "networkSecurityGroup": {
+                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroups_swarm_node_2_firewall_name'))]"
+                }
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/publicIPAddresses', parameters('publicIPAddresses_swarm_node_2_ip_name'))]",
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworks_docker_machine_vnet_name'))]",
+                "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroups_swarm_node_2_firewall_name'))]"
+            ]
+        },
+        {
+            "comments": "Generalized from resource: '/subscriptions/f567edfb-6273-4c59-ad6f-a8e478949531/resourceGroups/ContainersSwarmMode/providers/Microsoft.Network/networkInterfaces/swarm-node-3-nic'.",
+            "type": "Microsoft.Network/networkInterfaces",
+            "name": "[parameters('networkInterfaces_swarm_node_3_nic_name')]",
+            "apiVersion": "2016-03-30",
+            "location": "eastus",
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "ip",
+                        "properties": {
+                            "privateIPAddress": "192.168.0.7",
+                            "privateIPAllocationMethod": "Dynamic",
+                            "publicIPAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', parameters('publicIPAddresses_swarm_node_3_ip_name'))]"
+                            },
+                            "subnet": {
+                                "id": "[concat(resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworks_docker_machine_vnet_name')), '/subnets/docker-machine')]"
+                            }
+                        }
+                    }
+                ],
+                "dnsSettings": {
+                    "dnsServers": []
+                },
+                "enableIPForwarding": false,
+                "networkSecurityGroup": {
+                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroups_swarm_node_3_firewall_name'))]"
+                }
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/publicIPAddresses', parameters('publicIPAddresses_swarm_node_3_ip_name'))]",
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworks_docker_machine_vnet_name'))]",
+                "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroups_swarm_node_3_firewall_name'))]"
+            ]
+        },
+        {
+            "comments": "Generalized from resource: '/subscriptions/f567edfb-6273-4c59-ad6f-a8e478949531/resourceGroups/ContainersSwarmMode/providers/Microsoft.Network/networkSecurityGroups/swarm-leader-firewall'.",
+            "type": "Microsoft.Network/networkSecurityGroups",
+            "name": "[parameters('networkSecurityGroups_swarm_leader_firewall_name')]",
+            "apiVersion": "2016-03-30",
+            "location": "eastus",
+            "properties": {
+                "securityRules": [
+                    {
+                        "name": "SSHAllowAny",
+                        "properties": {
+                            "description": "Allow ssh from public Internet",
+                            "protocol": "Tcp",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "22",
+                            "sourceAddressPrefix": "*",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 100,
+                            "direction": "Inbound"
+                        }
+                    },
+                    {
+                        "name": "DockerAllowAny",
+                        "properties": {
+                            "description": "Allow docker engine access (TLS-protected)",
+                            "protocol": "Tcp",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "2376",
+                            "sourceAddressPrefix": "*",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 300,
+                            "direction": "Inbound"
+                        }
+                    },
+                    {
+                        "name": "Port8080-TcpAllowAny",
+                        "properties": {
+                            "description": "User requested port to be accessible from Internet via docker-machine",
+                            "protocol": "Tcp",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "8080",
+                            "sourceAddressPrefix": "*",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 1000,
+                            "direction": "Inbound"
+                        }
+                    },
+                    {
+                        "name": "web",
+                        "properties": {
+                            "protocol": "*",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "80",
+                            "sourceAddressPrefix": "*",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 1010,
+                            "direction": "Inbound"
+                        }
+                    }
+                ]
+            },
+            "dependsOn": []
+        },
+        {
+            "comments": "Generalized from resource: '/subscriptions/f567edfb-6273-4c59-ad6f-a8e478949531/resourceGroups/ContainersSwarmMode/providers/Microsoft.Network/networkSecurityGroups/swarm-node-1-firewall'.",
+            "type": "Microsoft.Network/networkSecurityGroups",
+            "name": "[parameters('networkSecurityGroups_swarm_node_1_firewall_name')]",
+            "apiVersion": "2016-03-30",
+            "location": "eastus",
+            "properties": {
+                "securityRules": [
+                    {
+                        "name": "SSHAllowAny",
+                        "properties": {
+                            "description": "Allow ssh from public Internet",
+                            "protocol": "Tcp",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "22",
+                            "sourceAddressPrefix": "*",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 100,
+                            "direction": "Inbound"
+                        }
+                    },
+                    {
+                        "name": "DockerAllowAny",
+                        "properties": {
+                            "description": "Allow docker engine access (TLS-protected)",
+                            "protocol": "Tcp",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "2376",
+                            "sourceAddressPrefix": "*",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 300,
+                            "direction": "Inbound"
+                        }
+                    }
+                ]
+            },
+            "dependsOn": []
+        },
+        {
+            "comments": "Generalized from resource: '/subscriptions/f567edfb-6273-4c59-ad6f-a8e478949531/resourceGroups/ContainersSwarmMode/providers/Microsoft.Network/networkSecurityGroups/swarm-node-2-firewall'.",
+            "type": "Microsoft.Network/networkSecurityGroups",
+            "name": "[parameters('networkSecurityGroups_swarm_node_2_firewall_name')]",
+            "apiVersion": "2016-03-30",
+            "location": "eastus",
+            "properties": {
+                "securityRules": [
+                    {
+                        "name": "SSHAllowAny",
+                        "properties": {
+                            "description": "Allow ssh from public Internet",
+                            "protocol": "Tcp",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "22",
+                            "sourceAddressPrefix": "*",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 100,
+                            "direction": "Inbound"
+                        }
+                    },
+                    {
+                        "name": "DockerAllowAny",
+                        "properties": {
+                            "description": "Allow docker engine access (TLS-protected)",
+                            "protocol": "Tcp",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "2376",
+                            "sourceAddressPrefix": "*",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 300,
+                            "direction": "Inbound"
+                        }
+                    }
+                ]
+            },
+            "dependsOn": []
+        },
+        {
+            "comments": "Generalized from resource: '/subscriptions/f567edfb-6273-4c59-ad6f-a8e478949531/resourceGroups/ContainersSwarmMode/providers/Microsoft.Network/networkSecurityGroups/swarm-node-3-firewall'.",
+            "type": "Microsoft.Network/networkSecurityGroups",
+            "name": "[parameters('networkSecurityGroups_swarm_node_3_firewall_name')]",
+            "apiVersion": "2016-03-30",
+            "location": "eastus",
+            "properties": {
+                "securityRules": [
+                    {
+                        "name": "SSHAllowAny",
+                        "properties": {
+                            "description": "Allow ssh from public Internet",
+                            "protocol": "Tcp",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "22",
+                            "sourceAddressPrefix": "*",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 100,
+                            "direction": "Inbound"
+                        }
+                    },
+                    {
+                        "name": "DockerAllowAny",
+                        "properties": {
+                            "description": "Allow docker engine access (TLS-protected)",
+                            "protocol": "Tcp",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "2376",
+                            "sourceAddressPrefix": "*",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 300,
+                            "direction": "Inbound"
+                        }
+                    }
+                ]
+            },
+            "dependsOn": []
+        },
+        {
+            "comments": "Generalized from resource: '/subscriptions/f567edfb-6273-4c59-ad6f-a8e478949531/resourceGroups/ContainersSwarmMode/providers/Microsoft.Network/publicIPAddresses/swarm-leader-ip'.",
+            "type": "Microsoft.Network/publicIPAddresses",
+            "name": "[parameters('publicIPAddresses_swarm_leader_ip_name')]",
+            "apiVersion": "2016-03-30",
+            "location": "eastus",
+            "properties": {
+                "publicIPAllocationMethod": "Dynamic",
+                "idleTimeoutInMinutes": 4
+            },
+            "dependsOn": []
+        },
+        {
+            "comments": "Generalized from resource: '/subscriptions/f567edfb-6273-4c59-ad6f-a8e478949531/resourceGroups/ContainersSwarmMode/providers/Microsoft.Network/publicIPAddresses/swarm-node-1-ip'.",
+            "type": "Microsoft.Network/publicIPAddresses",
+            "name": "[parameters('publicIPAddresses_swarm_node_1_ip_name')]",
+            "apiVersion": "2016-03-30",
+            "location": "eastus",
+            "properties": {
+                "publicIPAllocationMethod": "Dynamic",
+                "idleTimeoutInMinutes": 4
+            },
+            "dependsOn": []
+        },
+        {
+            "comments": "Generalized from resource: '/subscriptions/f567edfb-6273-4c59-ad6f-a8e478949531/resourceGroups/ContainersSwarmMode/providers/Microsoft.Network/publicIPAddresses/swarm-node-2-ip'.",
+            "type": "Microsoft.Network/publicIPAddresses",
+            "name": "[parameters('publicIPAddresses_swarm_node_2_ip_name')]",
+            "apiVersion": "2016-03-30",
+            "location": "eastus",
+            "properties": {
+                "publicIPAllocationMethod": "Dynamic",
+                "idleTimeoutInMinutes": 4
+            },
+            "dependsOn": []
+        },
+        {
+            "comments": "Generalized from resource: '/subscriptions/f567edfb-6273-4c59-ad6f-a8e478949531/resourceGroups/ContainersSwarmMode/providers/Microsoft.Network/publicIPAddresses/swarm-node-3-ip'.",
+            "type": "Microsoft.Network/publicIPAddresses",
+            "name": "[parameters('publicIPAddresses_swarm_node_3_ip_name')]",
+            "apiVersion": "2016-03-30",
+            "location": "eastus",
+            "properties": {
+                "publicIPAllocationMethod": "Dynamic",
+                "idleTimeoutInMinutes": 4
+            },
+            "dependsOn": []
+        },
+        {
+            "comments": "Generalized from resource: '/subscriptions/f567edfb-6273-4c59-ad6f-a8e478949531/resourceGroups/ContainersSwarmMode/providers/Microsoft.Network/virtualNetworks/docker-machine-vnet'.",
+            "type": "Microsoft.Network/virtualNetworks",
+            "name": "[parameters('virtualNetworks_docker_machine_vnet_name')]",
+            "apiVersion": "2016-03-30",
+            "location": "eastus",
+            "properties": {
+                "addressSpace": {
+                    "addressPrefixes": [
+                        "192.168.0.0/16",
+                        "10.0.0.0/8",
+                        "172.16.0.0/12"
+                    ]
+                },
+                "subnets": [
+                    {
+                        "name": "docker-machine",
+                        "properties": {
+                            "addressPrefix": "192.168.0.0/16"
+                        }
+                    }
+                ]
+            },
+            "dependsOn": []
+        },
+        {
+            "comments": "Generalized from resource: '/subscriptions/f567edfb-6273-4c59-ad6f-a8e478949531/resourceGroups/containersswarmmode/providers/Microsoft.Storage/storageAccounts/vhdszc05dsaljgs2tzicj682'.",
+            "type": "Microsoft.Storage/storageAccounts",
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "kind": "Storage",
+            "name": "[variables('vhdStorageAccountName')]",
+            "apiVersion": "2016-01-01",
+            "location": "eastus",
+            "tags": {},
+            "properties": {},
+            "dependsOn": []
+        },
+         {
+            "type": "Microsoft.Compute/virtualMachines/extensions",
+            "name": "[concat(parameters('virtualMachines_swarm_leader_name'), '/DockerExtension')]",
+            "tags": {
+                "displayName": "DockerExtension"
+            },
+            "apiVersion": "2016-03-30",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Compute/virtualMachines', parameters('virtualMachines_swarm_leader_name'))]"
+            ],
+            "properties": {
+                "autoUpgradeMinorVersion": true,
+                "publisher": "Microsoft.Azure.Extensions",
+                "settings": {
+                "installonly": "true"
+                },
+                "type": "DockerExtension",
+                "typeHandlerVersion": "1.0"
+            }
+        },
+         {
+            "type": "Microsoft.Compute/virtualMachines/extensions",
+            "name": "[concat(parameters('virtualMachines_swarm_node_1_name'), '/DockerExtension')]",
+            "tags": {
+                "displayName": "DockerExtension"
+            },
+            "apiVersion": "2016-03-30",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Compute/virtualMachines', parameters('virtualMachines_swarm_node_1_name'))]"
+            ],
+            "properties": {
+                "autoUpgradeMinorVersion": true,
+                "publisher": "Microsoft.Azure.Extensions",
+                "settings": {
+                "installonly": "true"
+                },
+                "type": "DockerExtension",
+                "typeHandlerVersion": "1.0"
+            }
+        },
+        {
+            "type": "Microsoft.Compute/virtualMachines/extensions",
+            "name": "[concat(parameters('virtualMachines_swarm_node_2_name'), '/DockerExtension')]",
+            "tags": {
+                "displayName": "DockerExtension"
+            },
+            "apiVersion": "2016-03-30",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Compute/virtualMachines', parameters('virtualMachines_swarm_node_2_name'))]"
+            ],
+            "properties": {
+                "autoUpgradeMinorVersion": true,
+                "publisher": "Microsoft.Azure.Extensions",
+                "settings": {
+                "installonly": "true"
+                },
+                "type": "DockerExtension",
+                "typeHandlerVersion": "1.0"
+            }
+        },
+         {
+            "type": "Microsoft.Compute/virtualMachines/extensions",
+            "name": "[concat(parameters('virtualMachines_swarm_node_3_name'), '/DockerExtension')]",
+            "tags": {
+                "displayName": "DockerExtension"
+            },
+            "apiVersion": "2016-03-30",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Compute/virtualMachines', parameters('virtualMachines_swarm_node_3_name'))]"
+            ],
+            "properties": {
+                "autoUpgradeMinorVersion": true,
+                "publisher": "Microsoft.Azure.Extensions",
+                "settings": {
+                "installonly": "true"
+                },
+                "type": "DockerExtension",
+                "typeHandlerVersion": "1.0"
+            }
+        }
+
+    ]
+}
