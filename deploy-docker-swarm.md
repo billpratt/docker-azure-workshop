@@ -1,22 +1,57 @@
-# How to use docker with swarm
-This topic shows a very simple way to use [docker engine with in swarm mode](https://docs.docker.com/engine/swarm/) to create a swarm-managed cluster on Azure. It creates three virtual machines in Azure, one to act as the swarm manager, and two as part of the cluster of docker hosts. When you are finished, you can use swarm to see the cluster and then begin to use docker on it. 
+# Docker Swarm Mode with Azure
+In this lab you will play around with the container orchestration features of Docker. You will deploy a simple application to a single host and learn how that works. Then, you will configure Docker Swarm Mode, and learn to deploy the same simple application across multiple hosts. You will then see how to scale the application and move the workload across different hosts easily.
 
-> This topic uses docker with swarm and the Azure CLI *without* using swarm features built into **docker-machine** in order to show how the different tools work together but remain independent. **docker-machine** has **--swarm** switches that enable you to use **docker-machine** to directly add nodes to a swarm. For an example, see the [docker-machine](https://github.com/docker/machine) documentation. However, we will be using the non-swarm related **docker-machine** commands to deploy the machines to Azure and to connect to them remotely to manage the swarm.
+> **Tasks**:
+>
+> * [Section #0 - Prerequisites/Creating VMs](#prerequisites)
+> * [Section #1 - What is Orchestration](#basics)
+> * [Section #2 - Configure Swarm Mode](#start-cluster)
+> * [Section #3 - Deploy applications across multiple hosts](#multi-application)
+> * [Section #4 - Scale the application](#scale-application)
+> * [Section #5 - Drain a node and reschedule the containers](#recover-application)
+> * [Cleaning Up](#cleanup)
 
-For the differences between Docker Swarm and Docker Swarm Mode, there is a great explaination [here](http://stackoverflow.com/questions/38474424/the-relation-between-docker-swarm-and-docker-swarmkit/38483429).
+## Document conventions
 
-## Install Azure CLI 2
+When you encounter a phrase in between `<` and `>`  you are meant to substitute in a different value. 
+
+For instance if you see `ssh <username>@<hostname>` you would actually type something like `ssh sysadmin@swarm-leader.ivaf2i2atqouppoxund0tvddsa.jx.internal.cloudapp.net`
+
+# <a name="prerequisites"></a>Section 0: Prerequisites/Creating VMs
+
+For this lab we will need to create three virtual machines referred to as __swarm-leader__, __swarm-node-1__ and __swarm-node-2__. We will use Azure and a custom bash script that uses the Azure CLI to create all the VMs in one command.
+
+## Step 0.1 - Install Azure CLI 2.0
+
 You will need to install [Azure CLI 2.0](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli) for this lab.
 
 > Note for Windows users: Please run all the commands from the ```Git Bash``` prompt that is installed with [Git For Windows](https://git-for-windows.github.io/).  You can download it from the page if you do not have it.  Use all the defaults when installing.
 
-## Create docker hosts with Azure Virtual Machines
+## Step 0.2 - Login to the Azure CLI
 
-This topic creates three VMs, but you can use any number you want. Before you run the script login into the Azure CLI and get your subscription Id.
+Before you continue please login into the Azure CLI and get your subscription Id.
 
 **Login to the Azure CLI**
 
     az login
+
+You should see output similar to below. Follow the instructions printed on the command shell.
+When that process completes, the command shell completes the log in process. It might look something like:
+
+	[
+		{
+			"cloudName": "AzureCloud",
+			"id": "...",
+			"isDefault": true,
+			"name": "Free Trial",
+			"state": "Enabled",
+			"tenantId": "...",
+			"user": {
+			"name": "...",
+			"type": "user"
+			}
+		}
+	] 
 
 **Get your subscription Id**
 
@@ -38,58 +73,192 @@ This will print out a JSON block similar to the below one showing the accounts y
             }
         }
     ]
+
+Copy your subscription id because we will use it a few times.
     
 **Confirm your Azure Subscription**
 
-    az account set --subscription [YOUR SUB ID]
+    az account set --subscription <YOUR SUB ID>
+
+## Step 0.3 - Create docker hosts with Azure Virtual Machines
+
+This topic uses three VMs, but you can use any number you want. 
 
 **Build Swarm VMs**
-Use the environment variables we set previously or put your Subscription ID from above in the code before running these commands.  You may also want to change the azure location, resource group name and machine names to your liking by modifying the deployment script.
 
 Clone this repository and move to the deployment folder:
 
     $ git clone https://github.com/billpratt/docker-azure-workshop.git
-    $ cd deployment
+    $ cd docker-azure-workshop/deployment
 
-Run the deployment script and you will be prompted for your ```Subscription Id or Name```, ```Resource Group Name```, and ```Admin Password```:
+Run the deployment script and you will be prompted for your ```Subscription Id or Name```, ```Resource Group Name```, and ```Admin Password```.:
 
     $ sh ./deploy.sh
     Subscription Id:
-    youraccountidfromabove
+    <YOUR SUB ID>
     ResourceGroupName:
     dockerswarm
     Enter an admin password for vms
     Admin Password:
-    yourpassword
+    <YOUR PASSWORD>
+
+**Important** Use a password you will remember because you will use it to SSH into the VMs later.
 
 This will take 5-10 minutes.  
 
-When you're done you should be able to use **az vm list** to see your Azure VMs:
+When you're done you should be able to use **az vm list** to see your Azure VMs and get the public IPs to SSH into:
 
-    $ az vm list --resource-group $AZ_RESOURCE_GROUP --output table
+    $ az vm list --resource-group <Resource Group Name Used> --output table --show-details
 
-    Name         ResourceGroup     Location
-    -----------  -------------     --------
-    swarm-leader  DOCKERSWARM2     eastus
-    swarm-node-1  DOCKERSWARM2     eastus
-    swarm-node-2  DOCKERSWARM2     eastus
-    swarm-node-3  DOCKERSWARM2     eastus
+    Name          ResourceGroup    PowerState    PublicIps      Location
+    ------------  ---------------  ------------  -------------  ----------
+    swarm-leader  dockerswarm      VM running    11.11.111.111  eastus
+    swarm-node-1  dockerswarm      VM running    11.11.111.112  eastus
+    swarm-node-2  dockerswarm      VM running    11.11.111.113  eastus
+    swarm-node-3  dockerswarm      VM running    11.11.111.114  eastus
 
-**More environment variables!**
+# <a name="basics"></a>Section 1: What is Orchestration
 
-NEED DIRECTIONS ON HOW TO GET IP ADDRESS 
+So, what is Orchestration anyways? Well, Orchestration is probably best described using an example. Lets say that you have an application that has high traffic along with high-availability requirements. Due to these requirements, you typically want to deploy across at least 3+ machines, so that in the event a host fails, your application will still be accessible from at least two others. Obviously, this is just an example and your use-case will likely have its own requirements, but you get the idea.
 
-Since we will be typing the VM names a bit, lets set them as environment variables
+Deploying your application without Orchestration is typically very time consuming and error prone, because you would have to manually SSH into each machine, start up your application, and then continually keep tabs on things to make sure it is running as you expect.
 
-    export LEADER_VM_NAME=swarm-leader-bp-demo01
-    export WKR_VM_NAME1=swarm-node-bp-demo01
-    export WKR_VM_NAME2=swarm-node-bp-demo02
+But, with Orchestration tooling, you can typically off-load much of this manual work and let automation do the heavy lifting. One cool feature of Orchestration with Docker Swarm, is that you can deploy an application across many hosts with only a single command (once Swarm mode is enabled). Plus, if one of the supporting nodes dies in your Docker Swarm, other nodes will automatically pick up load, and your application will continue to hum along as usual.
 
-## Installing swarm on the swarm leader VM
+If you are typically only using `docker run` to deploy your applications, then you could likely really benefit from using Docker Compose, Docker Swarm mode, and both Docker Compose and Swarm.
 
-For this step, you will be using SSH to send commands to the **swarm-leader** from your Laptop using Docker. Unlike the standalone version of Docker Swarm, we do not need a respostitory/discovery service or a cluster ID to support the formation of the cluster.
+# <a name="start-cluster"></a>Section 2: Configure Swarm Mode
+
+Real-world applications are typically deployed across multiple hosts as discussed earlier. This improves application performance and availability, as well as allowing individual application components to scale independently. Docker has powerful native tools to help you do this.
+
+A swarm comprises one or more *Manager Nodes* and one or more *Worker Nodes*. The manager nodes maintain the state of swarm and schedule application containers. The worker nodes run the application containers. As of Docker 1.12, no external backend, or 3rd party components, are required for a fully functioning swarm - everything is built-in!
+
+In this part of the demo you will use all three of the nodes in your lab. __swarm-leader__ will be the Swarm manager, while __swarm-node-1__ and __swarm-node-2__ will be worker nodes. Swarm mode supports a highly available redundant manager nodes, but for the purposes of this lab you will only deploy a single manager node.
+
+## Step 2.1 - Create a Manager node
 
 Note for Windows users please use the ```Git Bash``` prompt that is installed with [Git For Windows](https://git-for-windows.github.io/).
+
+If you haven't already done so, please SSH in to **swarm-leader**.
+
+```
+$ ssh sysadmin@<swarm-leader public IP address>
+```
+
+In this step you'll initialize a new Swarm, join a single worker node, and verify the operations worked.
+
+Run `docker swarm init` on **swarm-leader**.
+
+```
+$ docker swarm init
+Swarm initialized: current node (6dlewb50pj2y66q4zi3egnwbi) is now a manager.
+
+To add a worker to this swarm, run the following command:
+
+    docker swarm join \
+    --token SWMTKN-1-1wxyoueqgpcrc4xk2t3ec7n1poy75g4kowmwz64p7ulqx611ih-68pazn0mj8p4p4lnuf4ctp8xy \
+    10.0.0.5:2377
+
+To add a manager to this swarm, run 'docker swarm join-token manager' and follow the instructions.
+```
+
+You can run the `docker info` command to verify that **swarm-leader** was successfully configured as a swarm manager node.
+
+```
+$ docker info
+Containers: 2
+ Running: 0
+ Paused: 0
+ Stopped: 2
+Images: 2
+Server Version: 17.03.1-ee-3
+Storage Driver: aufs
+ Root Dir: /var/lib/docker/aufs
+ Backing Filesystem: extfs
+ Dirs: 13
+ Dirperm1 Supported: true
+Logging Driver: json-file
+Cgroup Driver: cgroupfs
+Plugins:
+ Volume: local
+ Network: bridge host macvlan null overlay
+Swarm: active
+ NodeID: rwezvezez3bg1kqg0y0f4ju22
+ Is Manager: true
+ ClusterID: qccn5eanox0uctyj6xtfvesy2
+ Managers: 1
+ Nodes: 1
+ Orchestration:
+  Task History Retention Limit: 5
+ Raft:
+  Snapshot Interval: 10000
+  Number of Old Snapshots to Retain: 0
+  Heartbeat Tick: 1
+  Election Tick: 3
+ Dispatcher:
+  Heartbeat Period: 5 seconds
+ CA Configuration:
+  Expiry Duration: 3 months
+ Node Address: 10.0.0.5
+ Manager Addresses:
+  10.0.0.5:2377
+<Snip>
+```
+
+The swarm is now initialized with **swarm-leader** as the only Manager node. In the next section you will add **swarm-node-1** and **swarm-node-2** as *Worker nodes*.
+
+##  Step 2.2 - Join Worker nodes to the Swarm
+
+You will perform the following procedure on **swarm-node-1** and **swarm-node-2**. Towards the end of the procedure you will switch back to **swarm-leader**.
+
+Open a new SSH session to __swarm-node-1__ (Keep your SSH session to **swarm-leader** open in another tab or window).
+
+```
+$ ssh sysadmin@<swarm-node-1 public IP address>
+```
+
+Now, take that entire `docker swarm join ...` command we copied earlier from `swarm-leader` where it was displayed as terminal output. We need to paste the copied command into the terminal of **swarm-node-1** and **swarm-node-2**.
+
+It should look something like this for **swarm-node-1**. By the way, if the `docker swarm join ...` command scrolled off your screen already, you can run the `docker swarm join-token worker` command on the Manager node to get it again.
+
+```
+$ docker swarm join \
+    --token SWMTKN-1-1wxyoueqgpcrc4xk2t3ec7n1poy75g4kowmwz64p7ulqx611ih-68pazn0mj8p4p4lnuf4ctp8xy \
+    10.0.0.5:2377
+```
+
+Again, ssh into **swarm-node-2** and it should look something like this.
+
+```
+$ ssh sysadmin@<swarm-node-2 public IP address>
+```
+
+```
+$ docker swarm join \
+    --token SWMTKN-1-1wxyoueqgpcrc4xk2t3ec7n1poy75g4kowmwz64p7ulqx611ih-68pazn0mj8p4p4lnuf4ctp8xy \
+    10.0.0.5:2377
+```
+
+Once you have run this on **swarm-node-1** and **swarm-node-2**, switch back to **swarm-leader**, and run a `docker node ls` to verify that both nodes are part of the Swarm. You should see three nodes, **swarm-leader** as the Manager node and **swarm-node-1** and **swarm-node-2** both as Worker nodes.
+
+```
+$ docker node ls
+ID                           HOSTNAME  STATUS  AVAILABILITY  MANAGER STATUS
+6dlewb50pj2y66q4zi3egnwbi *  swarm-leader   Ready   Active        Leader
+ym6sdzrcm08s6ohqmjx9mk3dv    swarm-node-2   Ready   Active
+yu3hbegvwsdpy9esh9t2lr431    swarm-node-1   Ready   Active
+```
+
+The `docker node ls` command shows you all of the nodes that are in the swarm as well as their roles in the swarm. The `*` identifies the node that you are issuing the command from.
+
+Congratulations! You have configured a swarm with one manager node and two worker nodes.
+
+# <a name="multi-application"></a>Section 3: Deploy applications across multiple hosts
+
+
+REMOVE BELOW!!!
+
+For this step, you will be using SSH to send commands to the **swarm-leader** from your Laptop using Docker. Unlike the standalone version of Docker Swarm, we do not need a respostitory/discovery service or a cluster ID to support the formation of the cluster.
 
 You will need to initialize the swarm on the leader node and tell it to listen on its private address.
 
