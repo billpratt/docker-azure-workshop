@@ -810,5 +810,24 @@
             }
         }
 
-    ]
+    ],
+    "outputs": {
+         "Leader Node SSH": {
+            "value": "[concat(reference(resourceId('Microsoft.Compute/virtualMachines',parameters('virtualMachines_swarm_leader_name'))).osProfile.adminUsername, '@', reference(resourceId('Microsoft.Network/publicIPAddresses',parameters('publicIPAddresses_swarm_leader_ip_name'))).IpAddress)]",
+            "type": "string"
+        },
+         "Node 1 SSH": {
+            "value": "[concat(reference(resourceId('Microsoft.Compute/virtualMachines',parameters('virtualMachines_swarm_node_1_name'))).osProfile.adminUsername, '@', reference(resourceId('Microsoft.Network/publicIPAddresses',parameters('publicIPAddresses_swarm_node_1_ip_name'))).IpAddress)]",
+            "type": "string"
+        },
+         "Node 2 SSH": {
+            "value": "[concat(reference(resourceId('Microsoft.Compute/virtualMachines',parameters('virtualMachines_swarm_node_2_name'))).osProfile.adminUsername, '@', reference(resourceId('Microsoft.Network/publicIPAddresses',parameters('publicIPAddresses_swarm_node_2_ip_name'))).IpAddress)]",
+            "type": "string"
+        },
+         "Node 3 SSH": {
+            "value": "[concat(reference(resourceId('Microsoft.Compute/virtualMachines',parameters('virtualMachines_swarm_node_3_name'))).osProfile.adminUsername, '@', reference(resourceId('Microsoft.Network/publicIPAddresses',parameters('publicIPAddresses_swarm_node_3_ip_name'))).IpAddress)]",
+            "type": "string"
+        }
+    }
+    
 }

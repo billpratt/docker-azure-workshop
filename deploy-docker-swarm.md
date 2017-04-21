@@ -33,8 +33,8 @@ This will print out a JSON block similar to the below one showing the accounts y
             "state": "Enabled",
             "tenantId": "....",
             "user": {
-            "name": "....",
-            "type": "user"
+                "name": "....",
+                "type": "user"
             }
         }
     ]
