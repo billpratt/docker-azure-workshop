@@ -20,9 +20,24 @@ This topic creates three VMs, but you can use any number you want. Before you ru
 
 **Get your subscription Id**
 
-Type the command below. This will print out a JSON block showing the accounts you are currently logged into. The subscription id is found in the **id** field.
-
     az account list
+
+This will print out a JSON block similar to the below one showing the accounts you are currently logged into. The subscription id is found in the **id** field.
+
+    [
+        {
+            "cloudName": "AzureCloud",
+            "id": ".....",
+            "isDefault": true,
+            "name": "Free Trial",
+            "state": "Enabled",
+            "tenantId": "....",
+            "user": {
+            "name": "....",
+            "type": "user"
+            }
+        }
+    ]
     
 **Confirm your Azure Subscription**
 
