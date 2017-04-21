@@ -66,21 +66,21 @@ NEED DIRECTIONS ON HOW TO GET IP ADDRESS
 
 Since we will be typing the VM names a bit, lets set them as environment variables
 
-    export MASTER_VM_NAME=swarm-leader-bp-demo01
+    export LEADER_VM_NAME=swarm-leader-bp-demo01
     export WKR_VM_NAME1=swarm-node-bp-demo01
     export WKR_VM_NAME2=swarm-node-bp-demo02
 
-## Installing swarm on the swarm master VM
+## Installing swarm on the swarm leader VM
 
-For this step, you will be using SSH to send commands to the **swarm-master** from your Laptop using Docker. Unlike the standalone version of Docker Swarm, we do not need a respostitory/discovery service or a cluster ID to support the formation of the cluster.
+For this step, you will be using SSH to send commands to the **swarm-leader** from your Laptop using Docker. Unlike the standalone version of Docker Swarm, we do not need a respostitory/discovery service or a cluster ID to support the formation of the cluster.
 
 Note for Windows users please use the ```Git Bash``` prompt that is installed with [Git For Windows](https://git-for-windows.github.io/).
 
-You will need to initialize the swarm on the master node and tell it to listen on its private address.
+You will need to initialize the swarm on the leader node and tell it to listen on its private address.
 
-First, let's get the private IP of the master node.
+First, let's get the private IP of the leader node.
 
-    $ ssh $MASTER_VM_NAME 
+    $ ssh $LEADER_VM_NAME 
     $ ifconfig | grep eth0 -A 2
     
 This will return the internal IP on the network card. You should see the following:
@@ -108,18 +108,18 @@ Copy this command for use in the next step.
 For each node you need to add to the swarm, run the command provided from the manager. 
 
     $ ssh $WKR_VM_NAME1 
-    $ docker swarm join --token SWMTKN-1-20sy0fq77wiu8pqx5dosb8xb2o6pf1o4j97bxmp5w6d0e9mn73-0hxovzt3xf7p0yu6n7bs9f61n <MASTER PRIVATE IP>:2377
+    $ docker swarm join --token SWMTKN-1-20sy0fq77wiu8pqx5dosb8xb2o6pf1o4j97bxmp5w6d0e9mn73-0hxovzt3xf7p0yu6n7bs9f61n <LEADER PRIVATE IP>:2377
     This node joined a swarm as a worker.
     $ exit
     
     $ ssh $WKR_VM_NAME2 
-    $ docker swarm join --token SWMTKN-1-20sy0fq77wiu8pqx5dosb8xb2o6pf1o4j97bxmp5w6d0e9mn73-0hxovzt3xf7p0yu6n7bs9f61n <MASTER PRIVATE IP>:2377
+    $ docker swarm join --token SWMTKN-1-20sy0fq77wiu8pqx5dosb8xb2o6pf1o4j97bxmp5w6d0e9mn73-0hxovzt3xf7p0yu6n7bs9f61n <LEADER PRIVATE IP>:2377
     This node joined a swarm as a worker.
     $ exit
 
 To check your work, run:
 
-    $ ssh $MASTER_VM_NAME 
+    $ ssh $LEADER_VM_NAME 
     $ docker info
 
 Look for the following information within the resulting output:
@@ -178,7 +178,7 @@ Check again which nodes the container is running on after scaling:
 
     $ docker service ps my_web
 
-Check that your website is accessible via the external IP address of the leader/master node. (The other nodes are inaccessible via port 8080 unless the port is opened on the firewall in Azure.) 
+Check that your website is accessible via the external IP address of the leader node. (The other nodes are inaccessible via port 8080 unless the port is opened on the firewall in Azure.) 
 
 Open a web browser to the returned IP address with the leader web server's exposed port (e.g. `http://40.117.195.87:8080`, in this case).
 
