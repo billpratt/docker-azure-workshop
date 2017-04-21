@@ -4,25 +4,18 @@ You'll need to follow the steps below to setup your machine for the workshop.
 
 ## Steps
 
-* [1. Create an AAD Account](#1)
-* [2. Install Azure CLI 2.0](#2)
-* [3. Get Docker](#3)
-* [4. Install SSH (Windows Only)](#4)
-* [5. Login to Azure CLI](#5)
+* [1. Install Azure CLI 2.0](#1)
+* [2. Get Docker](#2)
+* [3. Install Git](#3)
+* [4. Login to Azure CLI](#4)
 
-## <a name="1"></a>Step 1: Create an AAD Account
-
-There is a known issue with Azure Active Directory causing stored credentials to expire within hours rather than 14 days when the user logs in with personal Microsoft Account (formerly Live ID) instead of an Active Directory account. Currently, there is no ETA for resolution, however in the meanwhile you can [create an AAD account](https://docs.microsoft.com/en-us/azure/virtual-machines/windows/create-aad-work-id) and login with that as a workaround.
-
-- Create an Azure Active Directory account using [these instructions](https://docs.microsoft.com/en-us/azure/virtual-machines/windows/create-aad-work-id)
-
-## <a name="2"></a>Step 2: Install Azure CLI 2.0
+## <a name="1"></a>Step 1: Install Azure CLI 2.0
 
 We will be using the Azure CLI 2.0 tool
 
 - Install it from [here](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli)
 
-## <a name="3"></a>Step 3: Get Docker
+## <a name="2"></a>Step 2: Get Docker
 
 Mac
 
@@ -34,13 +27,17 @@ Windows 10 Professional
 - Docker for Windows Requires Microsoft Windows 10 Professional or Enterprise 64-bit - (install a trial in a VM if you need to) 
   - If you don't have a supported version of Windows 10, check the previous versions of [Docker Toolbox](https://www.docker.com/products/docker-toolbox)
 
-## <a name="4"></a>Step 4: Install SSH (Windows Only)
+## <a name="3"></a>Step 3: Install Git
 
-- Install Putty from [here](http://www.chiark.greenend.org.uk/~sgtatham/putty/latest.html)
+Mac
 
-## <a name="5"></a>Step 5: Login to Azure CLI
+- Install [Git for Mac](https://www.atlassian.com/git/tutorials/install-git)
 
-## Use the interactive log in method
+Windows
+
+- Install [Git for Windows](https://git-for-windows.github.io/)
+
+## <a name="4"></a>Step 4: Login to Azure CLI
 
 Open a command prompt and use the `az login` command -- without any arguments -- to authenticate interactively with either:
 
