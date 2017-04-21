@@ -35,7 +35,7 @@ shift $((OPTIND-1))
 
 #Prompt for parameters is some required parameters are missing
 if [[ -z "$subscriptionId" ]]; then
-	echo "Subscription Id:"
+	echo "Subscription Id or Name:"
 	read subscriptionId
 	[[ "${subscriptionId:?}" ]]
 fi

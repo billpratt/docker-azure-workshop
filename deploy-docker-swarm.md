@@ -5,12 +5,14 @@ This topic shows a very simple way to use [docker engine with in swarm mode](htt
 
 For the differences between Docker Swarm and Docker Swarm Mode, there is a great explaination [here](http://stackoverflow.com/questions/38474424/the-relation-between-docker-swarm-and-docker-swarmkit/38483429).
 
-## Install docker-machine
-To run this lab, you will need to install `docker-machine` locally. Please see the [installation instructions](https://docs.docker.com/machine/install-machine/) to get started.
+## Install Azure CLI 2
+You will need to install [Azure CLI 2.0](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli) for this lab.
+
+> Note for Windows users: Please run all the commands from the ```Git Bash``` prompt that is installed with [Git For Windows](https://git-for-windows.github.io/).  You can download it from the page if you do not have it.  Use all the defaults when installing.
 
 ## Create docker hosts with Azure Virtual Machines
 
-This topic creates three VMs, but you can use any number you want. **docker-machine** will save the SSH keys to your local machine.
+This topic creates three VMs, but you can use any number you want. Before you run the script login into the Azure CLI and get your subscription Id.
 
 **Login to the Azure CLI**
 
@@ -20,54 +22,60 @@ This topic creates three VMs, but you can use any number you want. **docker-mach
 
     az account list
 
-**Confirm your Azure Subscription**
-
-    azure account set <YOUR SUB ID>
-
-**Create environment variables to be re-used**
-
-    SUB_ID=<YOUR SUB ID>
-    AZ_LOCATION=eastus
-    AZ_SIZE=Standard_A1
-    AZ_RESOURCE_GROUP=ContainersSwarmMode
-    AZ_SSH_USER=docker-admin
-
 **Build Swarm VMs**
-Use the environment variables we set previously or put your Subscription ID from above in the code before running these commands.  You may also want to change the azure location, resource group name and machine names to your liking. Several other switches are available with the [Azure driver](https://docs.docker.com/machine/drivers/azure/) to control the deployment. 
+Use the environment variables we set previously or put your Subscription ID from above in the code before running these commands.  You may also want to change the azure location, resource group name and machine names to your liking by modifying the deployment script.
 
-    $ docker-machine create --driver azure --azure-subscription-id $SUB_ID --azure-location $AZ_LOCATION --azure-size $AZ_SIZE --azure-resource-group $AZ_RESOURCE_GROUP --azure-open-port 8080 --azure-ssh-user $AZ_SSH_USER swarm-leader-bp-demo01
+Clone this repository and move to the deployment folder:
 
-    $ docker-machine create --driver azure --azure-subscription-id $SUB_ID --azure-location $AZ_LOCATION --azure-size $AZ_SIZE --azure-resource-group $AZ_RESOURCE_GROUP --azure-ssh-user $AZ_SSH_USER swarm-node-bp-demo01
+    $ git clone https://github.com/billpratt/docker-azure-workshop.git
+    $ cd deployment
 
-    $ docker-machine create --driver azure --azure-subscription-id $SUB_ID --azure-location $AZ_LOCATION --azure-size $AZ_SIZE --azure-resource-group $AZ_RESOURCE_GROUP --azure-ssh-user $AZ_SSH_USER swarm-node-bp-demo02
+Run the deployment script and you will be prompted for your ```Subscription Id or Name```, ```Resource Group Name```, and ```Admin Password```:
+
+    $ sh ./deploy.sh
+    Subscription Id:
+    youraccountidfromabove
+    ResourceGroupName:
+    dockerswarm
+    Enter an admin password for vms
+    Admin Password:
+    yourpassword
+
+This will take 5-10 minutes.  
 
 When you're done you should be able to use **az vm list** to see your Azure VMs:
 
     $ az vm list --resource-group $AZ_RESOURCE_GROUP --output table
 
-    Name                    ResourceGroup        Location
-    ----------------------  -------------------  ----------
-    swarm-leader-bp-demo01  ContainersSwarmMode  eastus
-    swarm-node-bp-demo01    ContainersSwarmMode  eastus
-    swarm-node-bp-demo02    ContainersSwarmMode  eastus
+    Name         ResourceGroup     Location
+    -----------  -------------     --------
+    swarm-leader  DOCKERSWARM2     eastus
+    swarm-node-1  DOCKERSWARM2     eastus
+    swarm-node-2  DOCKERSWARM2     eastus
+    swarm-node-3  DOCKERSWARM2     eastus
 
 **More environment variables!**
 
+NEED DIRECTIONS ON HOW TO GET IP ADDRESS 
+
 Since we will be typing the VM names a bit, lets set them as environment variables
 
-    MASTER_VM_NAME=swarm-leader-bp-demo01
-    WKR_VM_NAME1=swarm-node-bp-demo01
-    WKR_VM_NAME2=swarm-node-bp-demo02
+    export MASTER_VM_NAME=swarm-leader-bp-demo01
+    export WKR_VM_NAME1=swarm-node-bp-demo01
+    export WKR_VM_NAME2=swarm-node-bp-demo02
 
 ## Installing swarm on the swarm master VM
 
-For this step, you will be using **docker-machine** to use SSH to send commands to the **swarm-master** from your Laptop using Docker. Unlike the standalone version of Docker Swarm, we do not need a respostitory/discovery service or a cluster ID to support the formation of the cluster.
+For this step, you will be using SSH to send commands to the **swarm-master** from your Laptop using Docker. Unlike the standalone version of Docker Swarm, we do not need a respostitory/discovery service or a cluster ID to support the formation of the cluster.
+
+Note for Windows users please use the ```Git Bash``` prompt that is installed with [Git For Windows](https://git-for-windows.github.io/).
 
 You will need to initialize the swarm on the master node and tell it to listen on its private address.
 
 First, let's get the private IP of the master node.
 
-    $ docker-machine ssh $MASTER_VM_NAME sudo ifconfig | grep eth0 -A 2
+    $ ssh $MASTER_VM_NAME 
+    $ ifconfig | grep eth0 -A 2
     
 This will return the internal IP on the network card. You should see the following:
 
@@ -77,7 +85,7 @@ This will return the internal IP on the network card. You should see the followi
 
 The `inet addr` is the internal/private IP you will use in this next step. Now, initialize the swarm that private IP.
 
-    $ docker-machine ssh $MASTER_VM_NAME sudo docker swarm init --advertise-addr <PRIVATE IP>
+    $ docker swarm init --advertise-addr <PRIVATE IP>
 
     Swarm initialized: current node (1i8hnn4v7msygj2z7nrk2p7zu) is now a manager.
 
@@ -93,13 +101,20 @@ Copy this command for use in the next step.
 
 For each node you need to add to the swarm, run the command provided from the manager. 
 
-    $ docker-machine ssh $WKR_VM_NAME1 sudo docker swarm join --token SWMTKN-1-20sy0fq77wiu8pqx5dosb8xb2o6pf1o4j97bxmp5w6d0e9mn73-0hxovzt3xf7p0yu6n7bs9f61n <MASTER PRIVATE IP>:2377
+    $ ssh $WKR_VM_NAME1 
+    $ docker swarm join --token SWMTKN-1-20sy0fq77wiu8pqx5dosb8xb2o6pf1o4j97bxmp5w6d0e9mn73-0hxovzt3xf7p0yu6n7bs9f61n <MASTER PRIVATE IP>:2377
+    This node joined a swarm as a worker.
+    $ exit
     
-    $ docker-machine ssh $WKR_VM_NAME2 sudo docker swarm join --token SWMTKN-1-20sy0fq77wiu8pqx5dosb8xb2o6pf1o4j97bxmp5w6d0e9mn73-0hxovzt3xf7p0yu6n7bs9f61n <MASTER PRIVATE IP>:2377
+    $ ssh $WKR_VM_NAME2 
+    $ docker swarm join --token SWMTKN-1-20sy0fq77wiu8pqx5dosb8xb2o6pf1o4j97bxmp5w6d0e9mn73-0hxovzt3xf7p0yu6n7bs9f61n <MASTER PRIVATE IP>:2377
+    This node joined a swarm as a worker.
+    $ exit
 
 To check your work, run:
 
-    $ docker-machine ssh $MASTER_VM_NAME sudo docker info
+    $ ssh $MASTER_VM_NAME 
+    $ docker info
 
 Look for the following information within the resulting output:
 
@@ -112,22 +127,21 @@ Look for the following information within the resulting output:
 
 ## Begin managing the swarm cluster
 
-To list out your nodes in your cluster:
+While ssh'd into leader, To list out your nodes in your cluster:
 
-    $ docker-machine ssh $MASTER_VM_NAME sudo docker node ls
+    $ docker node ls
 
     ID                           HOSTNAME                STATUS  AVAILABILITY  MANAGER STATUS
-    upsysx8lv4ow54fz6d33mc5m4 *  swarm-leader-bp-demo01  Ready   Active        Leader
-    x5rf6xgo1j3o69hneejv7noao    swarm-node-bp-demo02    Ready   Active        
-    yc8smnoayl85pvc43287jn47d    swarm-node-bp-demo01    Ready   Active
+    upsysx8lv4ow54fz6d33mc5m4 *  swarm-leader            Ready   Active        Leader
+    x5rf6xgo1j3o69hneejv7noao    swarm-node-1            Ready   Active        
+    yc8smnoayl85pvc43287jn47d    swarm-node-2            Ready   Active
 
 Note: The * shows which VM you ran the command on        
 
-
 ## Deploy a demo web app container ##
-To deploy containers run the following command:
+While ssh'd into leader, deploy containers run the following command:
 
-    $ docker-machine ssh $MASTER_VM_NAME sudo docker service create --replicas 1 --name my_web --publish 8080:5000 chrch/docker-pets
+    $ docker service create --replicas 1 --name my_web --publish 8080:5000 chrch/docker-pets
 
 What we just did:
  
@@ -137,38 +151,34 @@ What we just did:
 
 Check the service is running:
 
-    $ docker-machine ssh $MASTER_VM_NAME sudo docker service ls
+    $ docker service ls
 
     ID                  NAME                MODE                REPLICAS            IMAGE
     51hckk26443q        my_web              replicated          1/1                 chrch/docker-pets:latest
 
 See what node the container is running on:
 
-    $ docker-machine ssh $MASTER_VM_NAME sudo docker service ps my_web
+    $ docker service ps my_web
 
 Scale the service up to three nodes:
 
-    $ docker-machine ssh $MASTER_VM_NAME sudo docker service scale my_web=3
+    $ docker service scale my_web=3
 
 Inspect the details of the service. If you leave off the "pretty" switch, you'll get a response in JSON:
 
-    $ docker-machine ssh $MASTER_VM_NAME sudo docker service inspect --pretty my_web
+    $ docker service inspect --pretty my_web
 
 Check again which nodes the container is running on after scaling:
 
-    $ docker-machine ssh $MASTER_VM_NAME sudo docker service ps my_web
+    $ docker service ps my_web
 
 Check that your website is accessible via the external IP address of the leader/master node. (The other nodes are inaccessible via port 8080 unless the port is opened on the firewall in Azure.) 
 
-    $ docker-machine ls | grep $MASTER_VM_NAME
-    
-    swarm-leader   -        azure    Running   tcp://40.117.195.87:2376           v1.13.0
-    
-Open a web browser to the returned IP address with the web server's exposed port (e.g. `http://40.117.195.87:8080`, in this case).
+Open a web browser to the returned IP address with the leader web server's exposed port (e.g. `http://40.117.195.87:8080`, in this case).
 
 Then, delete the service:
 
-    $ docker-machine ssh $MASTER_VM_NAME sudo docker service rm my_web
+    $ docker service rm my_web
 
 ## Next steps
 
