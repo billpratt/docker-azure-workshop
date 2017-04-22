@@ -7,8 +7,7 @@ In this lab you will play around with the container orchestration features of Do
 > * [Section #1 - What is Orchestration](#basics)
 > * [Section #2 - Configure Swarm Mode](#start-cluster)
 > * [Section #3 - Deploy applications across multiple hosts](#multi-application)
-> * [Section #4 - Scale the application](#scale-application)
-> * [Section #5 - Drain a node and reschedule the containers](#recover-application)
+> * [Section #4 - Drain a node and reschedule the containers](#drain)
 > * [Cleaning Up](#cleanup)
 > * [Next Steps/Learn More](#nextsteps)
 
@@ -346,7 +345,9 @@ Find the IP address for **swarm-leader** and copy/paste into a browser.
 
 Click the button on the page or refresh your browser a few times. Watch the container id change under `Processed by container ID`. You should be load-balancing between the 7 containers deployed for your `pet-web-app` service.
 
-## Step 3.4 - Bring a node down for maintenance and add it back into the swarm.
+# <a name="drain"></a>Section 4: Drain a node and reschedule the containers
+
+## Step 4.1 - Bring a node down for maintenance and add it back into the swarm.
 
 Your pet-web-app has been doing amazing but now it's time to do some maintenance on one of your servers so you will need to gracefully take a server out of the swarm without interrupting service to your customers.
 
