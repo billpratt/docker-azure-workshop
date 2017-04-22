@@ -1,4 +1,4 @@
-# Workshop Setup
+# Setup Prerequisites
 
 You'll need to follow the steps below to setup your machine for the workshop.
 
