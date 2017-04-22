@@ -10,6 +10,7 @@ In this lab you will play around with the container orchestration features of Do
 > * [Section #4 - Scale the application](#scale-application)
 > * [Section #5 - Drain a node and reschedule the containers](#recover-application)
 > * [Cleaning Up](#cleanup)
+> * [Next Steps/Learn More](#nextsteps)
 
 ## Document conventions
 
@@ -94,10 +95,14 @@ Clone this repository and move to the deployment folder:
 Run the deployment script and you will be prompted for your ```Subscription Id or Name```, ```Resource Group Name```, and ```Admin Password```.:
 
     $ sh ./deploy.sh
+    
     Subscription Id:
     <YOUR SUB ID>
+    
     ResourceGroupName:
     dockerswarm
+
+    
     Enter an admin password for vms
     Admin Password:
     <YOUR PASSWORD>
@@ -255,126 +260,226 @@ Congratulations! You have configured a swarm with one manager node and two worke
 
 # <a name="multi-application"></a>Section 3: Deploy applications across multiple hosts
 
+Now that you have a swarm up and running, it is time to deploy our really simple web application.
 
-REMOVE BELOW!!!
+You will perform the following procedure from **swarm-leader**.
 
-For this step, you will be using SSH to send commands to the **swarm-leader** from your Laptop using Docker. Unlike the standalone version of Docker Swarm, we do not need a respostitory/discovery service or a cluster ID to support the formation of the cluster.
+## Step 3.1 - Deploy the application components as Docker services
 
-You will need to initialize the swarm on the leader node and tell it to listen on its private address.
+We will use the concept of *Services* to scale our application easily and manage many containers as a single entity. Read more about [Docker services here].(https://docs.docker.com/engine/swarm/how-swarm-mode-works/services/)
 
-First, let's get the private IP of the leader node.
+> *Services* are a new concept in Docker 1.12. They work with swarms and are intended for long-running containers.
 
-    $ ssh $LEADER_VM_NAME 
-    $ ifconfig | grep eth0 -A 2
-    
-This will return the internal IP on the network card. You should see the following:
+You will perform this procedure from **swarm-leader**.
 
-    eth0      Link encap:Ethernet  HWaddr 00:0d:3a:17:82:b2  
-              inet addr:192.168.0.4  Bcast:192.168.255.255  Mask:255.255.0.0
-              inet6 addr: fe80::20d:3aff:fe17:82b2/64 Scope:Link
+Lets deploy `pet-web-app` as a *Service* across our Docker Swarm.
 
-The `inet addr` is the internal/private IP you will use in this next step. Now, initialize the swarm that private IP.
+```
+$ docker service create --replicas 1 --name pet-web-app --publish 80:5000 chrch/docker-pets
+of5rxsxsmm3asx53dqcq0o29c
+```
 
-    $ docker swarm init --advertise-addr <PRIVATE IP>
+Verify that the `service create` has been received by the Swarm manager.
 
-    Swarm initialized: current node (1i8hnn4v7msygj2z7nrk2p7zu) is now a manager.
+```
+$ docker service ls
+ID            NAME       MODE        REPLICAS  IMAGE
+of5rxsxsmm3a  pet-web-app  replicated  1/1      chrch/docker-pets:latest
+```
 
-To add a worker to this swarm, run the following command:
+The state of the service may change a couple times until it is running. The image is being downloaded from Docker Hub to the other engines in the Swarm. Once the image is downloaded the container goes into a running state on one of the three nodes.
 
-    docker swarm join \
-    --token SWMTKN-1-20sy0fq77wiu8pqx5dosb8xb2o6pf1o4j97bxmp5w6d0e9mn73-0hxovzt3xf7p0yu6n7bs9f61n \
-    192.168.0.5:2377
+At this point it may not seem that we have done anything very differently than just running a `docker run ...`. We have again deployed a single container on a single host. The difference here is that the container has been scheduled on a swarm cluster.
 
-Copy this command for use in the next step.
+Well done. You have deployed the pet-web-app to your new Swarm using Docker services. 
 
-## Join the node VMs to your docker cluster
+## Step 3.2 - Scale the app
 
-For each node you need to add to the swarm, run the command provided from the manager. 
+Demand is crazy! Everybody loves your `pet-web-app` app! It's time to scale out.
 
-    $ ssh $WKR_VM_NAME1 
-    $ docker swarm join --token SWMTKN-1-20sy0fq77wiu8pqx5dosb8xb2o6pf1o4j97bxmp5w6d0e9mn73-0hxovzt3xf7p0yu6n7bs9f61n <LEADER PRIVATE IP>:2377
-    This node joined a swarm as a worker.
-    $ exit
-    
-    $ ssh $WKR_VM_NAME2 
-    $ docker swarm join --token SWMTKN-1-20sy0fq77wiu8pqx5dosb8xb2o6pf1o4j97bxmp5w6d0e9mn73-0hxovzt3xf7p0yu6n7bs9f61n <LEADER PRIVATE IP>:2377
-    This node joined a swarm as a worker.
-    $ exit
+One of the great things about *services* is that you can scale them up and down to meet demand. In this step you'll scale the service up and then back down.
 
-To check your work, run:
+You will perform the following procedure from **swarm-leader**.
 
-    $ ssh $LEADER_VM_NAME 
-    $ docker info
+Scale the number of containers in the **pet-web-app** service to 7 with the `docker service update --replicas 7 pet-web-app` command. `replicas` is the term we use to describe identical containers providing the same service.
 
-Look for the following information within the resulting output:
+```
+$ docker service update --replicas 7 pet-web-app
+```
+	
+The Swarm manager schedules so that there are 7 `pet-web-app` containers in the cluster. These will be scheduled evenly across the Swarm members.
 
-    Swarm: active
-     NodeID: 1i8hnn4v7msygj2z7nrk2p7zu
-     Is Manager: true
-     ClusterID: 78f3x9oea40piz6rai37srgdv
-     Managers: 1
-     Nodes: 3
+We are going to use the `docker service ps pet-web-app` command. If you do this quick fast enough after using the  `--replicas` option you can see the containers come up in real time.
 
-## Begin managing the swarm cluster
+```
+$ docker service ps pet-web-app
+ID            NAME         IMAGE          NODE     DESIRED STATE  CURRENT STATE          ERROR  PORTS
+7k0flfh2wpt1  pet-web-app.1  ubuntu:latest  swarm-leader  Running        Running 9 minutes ago
+wol6bzq7xf0v  pet-web-app.2  ubuntu:latest  swarm-node-2  Running        Running 2 minutes ago
+id50tzzk1qbm  pet-web-app.3  ubuntu:latest  swarm-node-1  Running        Running 2 minutes ago
+ozj2itmio16q  pet-web-app.4  ubuntu:latest  swarm-node-2  Running        Running 2 minutes ago
+o4rk5aiely2o  pet-web-app.5  ubuntu:latest  swarm-node-1  Running        Running 2 minutes ago
+35t0eamu0rue  pet-web-app.6  ubuntu:latest  swarm-node-1  Running        Running 2 minutes ago
+44s8d59vr4a8  pet-web-app.7  ubuntu:latest  swarm-leader  Running        Running 2 minutes ago
+```
 
-While ssh'd into leader, To list out your nodes in your cluster:
+Notice that there are now 7 containers listed. It may take a few seconds for the new containers in the service to all show as **RUNNING**.  The `NODE` column tells us on which node a container is running.
 
-    $ docker node ls
+## Step 3.3 - Access the app from the browser
 
-    ID                           HOSTNAME                STATUS  AVAILABILITY  MANAGER STATUS
-    upsysx8lv4ow54fz6d33mc5m4 *  swarm-leader            Ready   Active        Leader
-    x5rf6xgo1j3o69hneejv7noao    swarm-node-1            Ready   Active        
-    yc8smnoayl85pvc43287jn47d    swarm-node-2            Ready   Active
+You will need the public IP address of the **swarm-leader** in order to access the `pet-web-app` from the browser.
 
-Note: The * shows which VM you ran the command on        
+Get the public IP address by running the command below on a local terminal (not one you have SSHed into):
 
-## Deploy a demo web app container ##
-While ssh'd into leader, deploy containers run the following command:
+```
+$ az vm list --resource-group dockerswarm --output table --show-details
 
-    $ docker service create --replicas 1 --name my_web --publish 8080:5000 chrch/docker-pets
+Name          ResourceGroup    PowerState    PublicIps      Location
+------------  ---------------  ------------  -------------  ----------
+swarm-leader  dockerswarm      VM running    11.11.111.111  eastus
+swarm-node-1  dockerswarm      VM running    11.11.111.112  eastus
+swarm-node-2  dockerswarm      VM running    11.11.111.113  eastus
+swarm-node-3  dockerswarm      VM running    11.11.111.114  eastus
+```
 
-What we just did:
- 
- - created a new [Docker service](https://docs.docker.com/engine/swarm/how-swarm-mode-works/services/) named **my_web**
- - deployed 1 container replica using the Docker image chrch/docker-pets from [Docker Hub](hub.docker.com)
- - mapped the internal port that the web app is listening on (5000) to the external port 8080
+Find the IP address for **swarm-leader** and copy/paste into a browser. 
 
-Check the service is running:
+Click the button on the page or refresh your browser a few times. Watch the container id change under `Processed by container ID`. You should be load-balancing between the 7 containers deployed for your `pet-web-app` service.
 
-    $ docker service ls
+## Step 3.4 - Bring a node down for maintenance and add it back into the swarm.
 
-    ID                  NAME                MODE                REPLICAS            IMAGE
-    51hckk26443q        my_web              replicated          1/1                 chrch/docker-pets:latest
+Your pet-web-app has been doing amazing but now it's time to do some maintenance on one of your servers so you will need to gracefully take a server out of the swarm without interrupting service to your customers.
 
-See what node the container is running on:
+Take a look at the status of your nodes again by running `docker node ls` on **swarm-leader**.  
 
-    $ docker service ps my_web
+```
+$ docker node ls
+ID                           HOSTNAME  STATUS  AVAILABILITY  MANAGER STATUS
+6dlewb50pj2y66q4zi3egnwbi *  swarm-leader   Ready   Active        Leader
+ym6sdzrcm08s6ohqmjx9mk3dv    swarm-node-2   Ready   Active
+yu3hbegvwsdpy9esh9t2lr431    swarm-node-1   Ready   Active
+```
 
-Scale the service up to three nodes:
+You will be taking **swarm-node-1** out of service for maintenance.
 
-    $ docker service scale my_web=3
+If you haven't already done so, please SSH in to **swarm-node-1**.
 
-Inspect the details of the service. If you leave off the "pretty" switch, you'll get a response in JSON:
+```
+$ ssh ubuntu@<swarm-leader IP address>
+```
 
-    $ docker service inspect --pretty my_web
+Then lets see the containers that you have running there.
 
-Check again which nodes the container is running on after scaling:
+```
+$ docker ps
+CONTAINER ID        IMAGE                      COMMAND                  CREATED              STATUS                        PORTS               NAMES
+1a2042e69061        chrch/docker-pets:latest   "/bin/sh -c 'pytho..."   About a minute ago   Up About a minute (healthy)                       pet-web-app.3.ijlezlna8emfc7gp2xc61b3sd
+11ca4df91856        chrch/docker-pets:latest   "/bin/sh -c 'pytho..."   6 minutes ago        Up 6 minutes (healthy)                            pet-web-app.2.g9tj6nupthdnvkdhuwe55f0sl
+```
 
-    $ docker service ps my_web
+You can see that we have a few of the `pet-web-app` containers running here (your output might look different though).
 
-Check that your website is accessible via the external IP address of the leader node. (The other nodes are inaccessible via port 8080 unless the port is opened on the firewall in Azure.) 
+Now lets jump back to **swarm-leader** (the Swarm manager) and take **swarm-node-1** out of service. To do that, lets run `docker node ls` again.
 
-Open a web browser to the returned IP address with the leader web server's exposed port (e.g. `http://40.117.195.87:8080`, in this case).
+```
+$ docker node ls
+ID                           HOSTNAME  STATUS  AVAILABILITY  MANAGER STATUS
+6dlewb50pj2y66q4zi3egnwbi *  swarm-leader   Ready   Active        Leader
+ym6sdzrcm08s6ohqmjx9mk3dv    swarm-node-2   Ready   Active
+yu3hbegvwsdpy9esh9t2lr431    swarm-node-1   Ready   Active
+```
 
-Then, delete the service:
+We are going to take the **ID** for **swarm-node-1** and run `docker node update --availability drain yu3hbegvwsdpy9esh9t2lr431`. We are using the **swarm-node-1** host **ID** as input into our `drain` command. 
 
-    $ docker service rm my_web
+```
+$ docker node update --availability drain yu3hbegvwsdpy9esh9t2lr431
+```
+Check the status of the nodes
 
-## Next steps
+```
+$ docker node ls
+ID                           HOSTNAME  STATUS  AVAILABILITY  MANAGER STATUS
+6dlewb50pj2y66q4zi3egnwbi *  swarm-leader   Ready   Active        Leader
+ym6sdzrcm08s6ohqmjx9mk3dv    swarm-node-2   Ready   Active
+yu3hbegvwsdpy9esh9t2lr431    swarm-node-1   Ready   Drain
+```
 
-1. Learn more about Docker Swarm Mode - [https://docs.docker.com/engine/swarm/](https://docs.docker.com/engine/swarm/) , or perhaps a [video](https://www.youtube.com/watch?v=KC4Ad1DS8xU)
-2. Run through more labs from DockerCon 2017 - [https://github.com/docker/dcus-hol-2017](https://github.com/docker/dcus-hol-2017)
+Node **swarm-node-1** is now in the `Drain` state. 
 
-## Notes
 
-In order to save credits in your Azure subscription or reduce costs, it's recommended that you STOP or DELETE the VMs after the completion of the lab.  If you stop the VMs and turn them back on at a future time, the external IP addresses will likely change.  You will need to use docker-machine regenerate-certs to update you SSH access.
+Switch back to **swarm-node-1** and see what is running there by running `docker ps`.
+
+```
+$ docker ps
+CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS              PORTS               NAMES
+```
+
+ **swarm-node-1** does not have any containers running on it.
+
+Next, check the service again on **swarm-leader** to make sure that the container were rescheduled. You should see all four containers running on the remaining two nodes.
+
+```
+$ docker service ps pet-web-app
+ID            NAME             IMAGE          NODE     DESIRED STATE  CURRENT STATE           ERROR  PORTS
+7k0flfh2wpt1  pet-web-app.1      ubuntu:latest  swarm-leader  Running        Running 25 minutes ago
+wol6bzq7xf0v  pet-web-app.2      ubuntu:latest  swarm-node-2  Running        Running 18 minutes ago
+s3548wki7rlk  pet-web-app.6      ubuntu:latest  swarm-node-2  Running        Running 3 minutes ago
+35t0eamu0rue   \_ pet-web-app.6  ubuntu:latest  swarm-node-1  Shutdown       Shutdown 3 minutes ago
+44s8d59vr4a8  pet-web-app.7      ubuntu:latest  swarm-leader  Running        Running 18 minutes ago
+```
+
+Finally, after maintenance is complete, add the **swarm-node-1** back into the swarm
+```
+$ docker node update --availability active ykxalgc687g4f70jw6grccx31
+ykxalgc687g4f70jw6grccx31
+```
+
+# <a name="cleanup"></a>Cleaning Up
+
+Execute the `docker service rm pet-web-app` command on **swarm-leader** to remove the service called *myservice*.
+
+```
+$ docker service rm pet-web-app
+```
+
+Execute the `docker ps` command on **swarm-leader** to get a list of running containers.
+
+```
+$ docker ps
+CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS              PORTS               NAMES
+044bea1c2277        ubuntu              "sleep infinity"    17 minutes ago      17 minutes ag                           distracted_mayer
+```
+
+Finally, lets remove swarm-leader, swarm-node-1, and swarm-node-2 from the Swarm. We can use the `docker swarm leave --force` command to do that. 
+
+Lets run `docker swarm leave --force` on **swarm-leader**.
+
+```
+$ docker swarm leave --force
+```
+
+Then, run `docker swarm leave --force` on **swarm-node-1**.
+
+```
+$ docker swarm leave --force
+```
+
+Finally, run `docker swarm leave --force` on **swarm-node-2**.
+
+```
+$ docker swarm leave --force
+```
+
+Congratulations! You've completed this lab. You now know how to build a swarm, deploy applications as collections of services, and scale individual services up and down.
+
+## Important Note
+
+In order to save credits in your Azure subscription or reduce costs, it's recommended that you STOP or DELETE the VMs after the completion of the lab.  If you stop the VMs and turn them back on at a future time, the external IP addresses will likely change.
+
+# <a name="nextsteps"></a>Next steps
+
+1. Interactive Docker tutorials at Katacoda - [https://www.katacoda.com/courses/docker](https://www.katacoda.com/courses/docker)
+2. Learn more about Docker Swarm Mode - [https://docs.docker.com/engine/swarm/](https://docs.docker.com/engine/swarm/) , or perhaps a [video](https://www.youtube.com/watch?v=KC4Ad1DS8xU)
+3. Azure Container Service to manage your container orchestrator nodes  - [https://azure.microsoft.com/en-us/services/container-service/](https://azure.microsoft.com/en-us/services/container-service/)
+
+
