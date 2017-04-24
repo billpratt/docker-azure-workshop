@@ -275,7 +275,6 @@ Lets deploy `pet-web-app` as a *Service* across our Docker Swarm.
 
 ```
 $ docker service create --replicas 1 --name pet-web-app --publish 80:5000 chrch/docker-pets
-of5rxsxsmm3asx53dqcq0o29c
 ```
 
 Verify that the `service create` has been received by the Swarm manager.
