@@ -93,7 +93,7 @@ Clone this repository and move to the deployment folder:
 
 Run the deployment script and you will be prompted for your ```Subscription Id or Name```, ```Resource Group Name```, and ```Admin Password```.:
 
-    $ sh ./deploy.sh
+    $ . ./deploy.sh
     
     Subscription Id:
     <YOUR SUB ID>
