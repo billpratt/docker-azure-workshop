@@ -487,20 +487,6 @@
                         }
                     },
                     {
-                        "name": "Port8080-TcpAllowAny",
-                        "properties": {
-                            "description": "User requested port to be accessible from Internet via docker-machine",
-                            "protocol": "Tcp",
-                            "sourcePortRange": "*",
-                            "destinationPortRange": "8080",
-                            "sourceAddressPrefix": "*",
-                            "destinationAddressPrefix": "*",
-                            "access": "Allow",
-                            "priority": 1000,
-                            "direction": "Inbound"
-                        }
-                    },
-                    {
                         "name": "web",
                         "properties": {
                             "protocol": "*",
@@ -552,6 +538,19 @@
                             "priority": 300,
                             "direction": "Inbound"
                         }
+                    },
+                    {
+                        "name": "web",
+                        "properties": {
+                            "protocol": "*",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "80",
+                            "sourceAddressPrefix": "*",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 1010,
+                            "direction": "Inbound"
+                        }
                     }
                 ]
             },
@@ -592,6 +591,19 @@
                             "priority": 300,
                             "direction": "Inbound"
                         }
+                    },
+                    {
+                        "name": "web",
+                        "properties": {
+                            "protocol": "*",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "80",
+                            "sourceAddressPrefix": "*",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 1010,
+                            "direction": "Inbound"
+                        }
                     }
                 ]
             },
@@ -630,6 +642,19 @@
                             "destinationAddressPrefix": "*",
                             "access": "Allow",
                             "priority": 300,
+                            "direction": "Inbound"
+                        }
+                    },
+                    {
+                        "name": "web",
+                        "properties": {
+                            "protocol": "*",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "80",
+                            "sourceAddressPrefix": "*",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 1010,
                             "direction": "Inbound"
                         }
                     }
