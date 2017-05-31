@@ -229,7 +229,7 @@ Notice, the ```Desired``` and ```Current``` columns. We have *declared* that we 
 You can see the full details of your deployment in ```yaml``` or ```json``` format by adding ```--output yaml``` or ```--output json``` to the same command.
 
 ```
-kubectl get deployment --output yaml
+kubectl get deployment hello-world --output yaml
 ```
 
 Output in YAML
