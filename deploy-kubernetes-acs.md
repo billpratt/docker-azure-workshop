@@ -1,5 +1,6 @@
 # Kubernetes on Azure Container Service
-[FILL IN]
+
+In this lab, you will create a Kubernetes cluster using Azure Container Service, deploy an application, scale it up and down, and hopefully get a good sense on why Kubernetes is a good choice for container orchestration. By the end, you will learn just how easy it is to create and maintain a Kubernetes cluster with Azure Container Service.
 
 > **Tasks**:
 >
@@ -10,7 +11,6 @@
 > * [Section #4 - Scale the application](#scale-app)
 > * [Section #5 - Kubernetes Dashboard](#dashboard)
 > * [Cleaning Up](#cleanup)
-> * [Next Steps/Learn More](#nextsteps)
 
 ## Document conventions
 
@@ -27,7 +27,7 @@ This lab will use a Docker container that has the Azure CLI pre-installed. When 
 To run the Docker container:
 
 ```
-docker run -it azuresdk/azure-cli-python
+docker run -it -p 8001:8001 azuresdk/azure-cli-python
 ```
 
 ## Step 0.2 - Login to the Azure CLI
@@ -146,6 +146,18 @@ az acs create \
 ```
 
 After several minutes, the command completes, and you should have a working Kubernetes cluster with one *manager* node and three *worker* nodes.
+
+To view everything that was created, go to the [Azure Portal](https://portal.azure.com).
+
+Click ```Resource Groups```
+
+![](images/resource-group.png)
+
+Click on the resource group named ```kube-demo```
+
+![](images/resource-group-list.png)
+
+You should see all of the resources that were created for our Azure Container Service Kubernetes cluster.
 
 ## Step 2.3 Connect to the cluster
 
@@ -297,7 +309,7 @@ selfLink: ""
 
 # Step 3.3 - Kubernetes pods
 
-Kubernetes run an instance of your application as a container in a Kubernetes ```Pod```. A Kubernetes Deployment is responsible for maintaining the state of pods including what version of the container and how many replicas should be running based on what the state of the Deployment you have declared.
+Kubernetes run an instance of your application as a container in a Kubernetes ```Pod```. A Kubernetes Deployment is responsible for maintaining the state of pods including what version of the container to run inside the pod and how many replicas (pods) should be running based on what the state of the Deployment you have declared.
 
 In the previous step, you deployed 1 replica. This replica is running in a *pod*. To see which cluster node is running this pod, run:
 
@@ -340,14 +352,15 @@ NAME          CLUSTER-IP   EXTERNAL-IP   PORT(S)        AGE
 hello-world   10.0.20.8    <pending>     80:30969/TCP   19s
 ```
 
-We are looking for the ```EXTERNAL-IP``` column to change. Once we have an IP address, the Azure Load Balancer is ready and we should be able to hit our application using the provided IP Address. After a minute you should see something like:
+This process can take a few minutes so please be patient. We are looking for the ```EXTERNAL-IP``` column to change. Once we have an IP address, the Azure Load Balancer is ready and we should be able to hit our application using the provided IP Address. After a minute you should see something like:
 
 ```
-NAME          CLUSTER-IP   EXTERNAL-IP   PORT(S)        AGE
-hello-world   10.0.20.8   [IP_ADDRESS]   80:30969/TCP   3m
+NAME          CLUSTER-IP    EXTERNAL-IP   PORT(S)        AGE
+hello-world   10.0.88.111   <pending>     80:30504/TCP   3s
+hello-world   10.0.88.111   40.71.92.176   80:30504/TCP   4m
 ```
 
-To stop watching for changes, use ```CTRL-C``` to bring you back to the command line.
+Once we have an IP address you can stop watching for changes with ```CTRL-C``` to bring you back to the command line.
 
 **Access your application**
 
@@ -358,20 +371,28 @@ Congratulations, you just created your first application in Kubernetes and expos
 
 # <a name="scale-app"></a>Section 4: Scale the application
 
-TODO: FILL IN
+One of the great things about *deployments* is that you can scale the pods up and down to meet demand. In this step you'll scale the service up and then back down.
+
+Scale the number of pods in the **hello-world** service to 7 with the `kubectl scale deployment hello-world --replicas 7` command. `replicas` is the term we use to describe identical pods running our application as a container.
 
 ```
-kubectl scale deployment hello-world --replicas 3
+kubectl scale deployment hello-world --replicas 7
 ```
+
+To view the results, get the details of the deployment
 
 ```
 kubectl get deployment hello-world
 ```
 
+You should see 7 *Desired* and 7 *Current* pods (replicas)
+
 ```
 NAME          DESIRED   CURRENT   UP-TO-DATE   AVAILABLE   AGE
-hello-world   3         3         3            1           32m
+hello-world   7         7         7            1           32m
 ```
+
+View which cluster nodes are running our pods
 
 ```
 kubectl get pods -o wide
@@ -379,26 +400,64 @@ kubectl get pods -o wide
 
 ```
 NAME                           READY     STATUS    RESTARTS   AGE       IP           NODE
-hello-world-2680727081-4p8th   1/1       Running   0          33m       10.244.3.2   k8s-agent-eda0b42-0
-hello-world-2680727081-4vbbq   1/1       Running   0          1m        10.244.2.5   k8s-agent-eda0b42-2
-hello-world-2680727081-wwg1c   1/1       Running   0          1m        10.244.1.5   k8s-agent-eda0b42-1
+hello-world-2680727081-12rcf   1/1       Running   0          1m        10.244.2.5   k8s-agent-7f099eb2-0
+hello-world-2680727081-2jt6g   1/1       Running   0          8m        10.244.0.5   k8s-agent-7f099eb2-1
+hello-world-2680727081-9kf1z   1/1       Running   0          1m        10.244.2.3   k8s-agent-7f099eb2-0
+hello-world-2680727081-m8j32   1/1       Running   0          1m        10.244.2.4   k8s-agent-7f099eb2-0
+hello-world-2680727081-s5g8w   1/1       Running   0          1m        10.244.3.4   k8s-agent-7f099eb2-2
+hello-world-2680727081-txj6h   1/1       Running   0          1m        10.244.0.6   k8s-agent-7f099eb2-1
+hello-world-2680727081-xvrfd   1/1       Running   0          1m        10.244.3.3   k8s-agent-7f099eb2-2
 ```
+
+Lets get crazy and scale up even further. A Kubernetes cluster can handle lots of running pods, depending on the resources of your cluster nodes.
 
 ```
 kubectl scale deployment hello-world --replicas 20
 ```
 
-# <a name="dashboard"></a>Section 5: Kubernetes Dashboard
+Running ```kubectl get pods -o wide``` again will show you how the pods are distributed across the cluster.
 
-TODO: FILL IN
+Finally, lets scale the number of replicas back down
+
+```
+kubectl scale deployment hello-world --replicas 3 
+```
+
+If you run ```kubectl get pods -o wide``` fast enough, you should see pods ```Terminating``` while keeping three running.
+
+```
+NAME                           READY     STATUS        RESTARTS   AGE       IP           NODE
+hello-world-2680727081-12rcf   1/1       Terminating   0          2m        10.244.2.5   k8s-agent-7f099eb2-0
+hello-world-2680727081-2jt6g   1/1       Running       0          10m       10.244.0.5   k8s-agent-7f099eb2-1
+hello-world-2680727081-45n0s   1/1       Terminating   0          1m        10.244.0.9   k8s-agent-7f099eb2-1
+hello-world-2680727081-5sgt2   1/1       Terminating   0          1m        10.244.3.9   k8s-agent-7f099eb2-2
+hello-world-2680727081-9kf1z   1/1       Running       0          2m        10.244.2.3   k8s-agent-7f099eb2-0
+hello-world-2680727081-9w077   1/1       Terminating   0          1m        10.244.3.8   k8s-agent-7f099eb2-2
+hello-world-2680727081-fb9df   1/1       Terminating   0          1m        10.244.0.7   k8s-agent-7f099eb2-1
+hello-world-2680727081-jhm5d   1/1       Terminating   0          1m        10.244.2.8   k8s-agent-7f099eb2-0
+hello-world-2680727081-k3bgz   1/1       Terminating   0          1m        10.244.2.7   k8s-agent-7f099eb2-0
+hello-world-2680727081-kksp1   1/1       Terminating   0          1m        10.244.3.5   k8s-agent-7f099eb2-2
+hello-world-2680727081-m8j32   1/1       Terminating   0          2m        10.244.2.4   k8s-agent-7f099eb2-0
+hello-world-2680727081-pj1f1   1/1       Terminating   0          1m        10.244.3.6   k8s-agent-7f099eb2-2
+hello-world-2680727081-s5g8w   1/1       Terminating   0          2m        10.244.3.4   k8s-agent-7f099eb2-2
+hello-world-2680727081-t5fj1   1/1       Terminating   0          1m        10.244.2.9   k8s-agent-7f099eb2-0
+hello-world-2680727081-txj6h   1/1       Running       0          2m        10.244.0.6   k8s-agent-7f099eb2-1
+hello-world-2680727081-vrftc   1/1       Terminating   0          1m        10.244.2.6   k8s-agent-7f099eb2-0
+hello-world-2680727081-xvrfd   1/1       Terminating   0          2m        10.244.3.3   k8s-agent-7f099eb2-2
+hello-world-2680727081-zzwjj   1/1       Terminating   0          1m        10.244.3.7   k8s-agent-7f099eb2-2
+```
+
+# <a name="dashboard"></a>Section 5: Kubernetes Dashboard
 
 Kubernetes provides a nice dashboard UI to visualize and maintain applications in our cluster. With Azure Container Service, the dashboard is pre-installed.
 
-You can access the dashboard by setting up a local proxy on port 8001.
+You can access the dashboard by setting up a local proxy on port 8001 inside the container we are running in.
 
 ```
-kubectl proxy
+kubectl proxy --address 0.0.0.0
 ```
+
+**Note**: ```--address 0.0.0.0``` is not needed if running outside of a container.
 
 ```
 Starting to serve on 127.0.0.1:8001
@@ -406,16 +465,38 @@ Starting to serve on 127.0.0.1:8001
 
 In a browser go to [http://localhost:8001/ui](http://localhost:8001/ui)
 
+You should see the ```hello-world``` *deployment*. Feel free to click around and explore. 
+
+![alt text](images/kube-dashboard-screenshot.png)
+
+Back in the container, exit out of the proxy with ```CTRL-C```
 
 # <a name="cleanup"></a>Section 5: Cleanup
 
-FILL IN 
+To remove ```hello-world``` from cluster, you must delete both the *deployment* and the *service*.  
+
+To delete the deployment
 
 ```
 kubectl delete deployment hello-world
 ```
 
+To delete the service
+
 ```
 kubectl delete service hello-world
 ```
 
+**Important Note**: You should delete the ACS cluster if you are no longer using it. Go to the [Azure Portal].(https://portal.azure.com)
+
+Click ```Resource Groups```
+
+![](images/resource-group.png)
+
+Click on the resource group named ```kube-demo```
+
+![](images/resource-group-list.png)
+
+In the ```Overview``` tab, click the Delete button and follow the instructions.
+
+![](images/resource-group-delete.png)
